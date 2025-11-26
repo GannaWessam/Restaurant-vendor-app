@@ -1,51 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:restaurant_reservation_app/screens/my_reservations_screen.dart';
 import '../models/restaurant_model.dart';
 import '../widgets/restaurant_card.dart';
+import '../db/restaurant_crud.dart';
 import 'add_restaurant_screen.dart';
 
-class VendorDashboard extends StatelessWidget {
+class VendorDashboard extends StatefulWidget {
   const VendorDashboard({super.key});
 
   @override
+  State<VendorDashboard> createState() => _VendorDashboardState();
+}
+
+class _VendorDashboardState extends State<VendorDashboard> {
+  final RestaurantCrud _restaurantCrud = Get.find<RestaurantCrud>();
+  List<RestaurantModel> _restaurants = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRestaurants();
+  }
+
+  Future<void> _loadRestaurants() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final restaurants = await _restaurantCrud.getAllRestaurants();
+      setState(() {
+        _restaurants = restaurants;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading restaurants: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final restaurants = [
-      RestaurantModel(
-        id: '1',
-        name: 'Koffee Kulture',
-        category: 'French-bistro café',
-        distance: 'Cairo Festival City',
-        rating: 4.5,
-        tables: '27',
-        description: 'New Coffery.SafeCozy coffee & brunch bar',
-        imagePath: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800',
-        timeSlots: ['9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM'],
-      ),
-      RestaurantModel(
-        id: '2',
-        name: 'Brioche Dorée',
-        category: 'French-bistro café',
-        distance: 'Cairo Festival City',
-        rating: 4.3,
-        tables: '28',
-        description: '',
-        imagePath: '',
-        timeSlots: ['9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM'],
-      ),
-      RestaurantModel(
-        id: '3',
-        name: 'Arabiata',
-        category: 'Classic Egyptian breakfast house',
-        distance: 'Nasr City',
-        rating: 4.7,
-        tables: '18',
-        description: '',
-        imagePath: '',
-        timeSlots: ['6:00 AM', '6:30 AM', '7:00 AM', '7:30 AM', '8:00 AM'],
-      ),
-    ];
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -197,9 +195,9 @@ class VendorDashboard extends StatelessWidget {
                                 const SizedBox(height: 10),
                                 Row(
                                   children: [
-                                    _buildStatChip('Restaurants', '3'),
+                                    _buildStatChip('Restaurants', '${_restaurants.length}'),
                                     const SizedBox(width: 6),
-                                    _buildStatChip('Breakfast cuisines', '10'),
+                                    _buildStatChip('Breakfast cuisines', '${_getUniqueCategories().length}'),
                                   ],
                                 ),
                               ],
@@ -229,12 +227,53 @@ class VendorDashboard extends StatelessWidget {
                           ),
                           const SizedBox(height: 14),
                           // Restaurant cards
-                          ...restaurants.map((restaurant) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: RestaurantCard(restaurant: restaurant),
-                            );
-                          }).toList(),
+                          if (_isLoading)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(40.0),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          else if (_restaurants.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(40.0),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.restaurant_outlined,
+                                      size: 64,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No restaurants yet',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Tap the + button to add your first restaurant',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            ..._restaurants.map((restaurant) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: RestaurantCard(restaurant: restaurant),
+                              );
+                            }).toList(),
                         ],
                       ),
                     ),
@@ -246,13 +285,15 @@ class VendorDashboard extends StatelessWidget {
               bottom: 40,
               right: 30,
               child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const AddRestaurantScreen(),
                     ),
                   );
+                  // Refresh restaurants list when returning from add screen
+                  _loadRestaurants();
                 },
                 child: Container(
                   width: 56,
@@ -427,6 +468,11 @@ class VendorDashboard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<String> _getUniqueCategories() {
+    final categories = _restaurants.map((r) => r.category).toSet().toList();
+    return categories;
   }
 }
 

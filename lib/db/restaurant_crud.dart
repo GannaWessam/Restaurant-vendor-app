@@ -21,10 +21,14 @@ class RestaurantCrud {
   Future<List<RestaurantModel>> getAllRestaurants() async { //vendor
     try {
       final restaurantsSnapshot = await firestore.collection('restaurants').get();
-      return restaurantsSnapshot.docs.map((restaurant)=>
-          RestaurantModel.fromJson(restaurant.data())).toList();
+      return restaurantsSnapshot.docs.map((doc) {
+        final data = doc.data();
+        // Ensure document ID is included
+        data['id'] = data['id'] ?? doc.id;
+        return RestaurantModel.fromJson(data);
+      }).toList();
     } catch (e) {
-      print(e);
+      print('Error getting restaurants: $e');
       return [];
     }
   }

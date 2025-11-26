@@ -8,6 +8,8 @@ import 'package:get/get_navigation/src/routes/get_route.dart';
 import 'package:restaurant_reservation_app/screens/my_reservations_screen.dart';
 import 'controllers/my_reservations_controller.dart';
 import 'db/reservations_crud.dart';
+import 'db/restaurant_crud.dart';
+import 'db/db_instance.dart';
 import 'firebase_options.dart';
 import 'screens/vendor_dashboard.dart';
 
@@ -22,7 +24,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  Get.put(CloudDb(), permanent: true);
   Get.put(ReservationsCrud(), permanent: true);
+  Get.put(RestaurantCrud(), permanent: true);
   
   runApp(const MyApp());
 }

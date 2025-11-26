@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:get/get.dart';
+import 'dart:io';
+import 'dart:async';
+import 'dart:typed_data';
+import '../db/restaurant_crud.dart';
+import '../models/restaurant_model.dart';
 
 class AddRestaurantScreen extends StatefulWidget {
   const AddRestaurantScreen({super.key});
@@ -14,6 +23,10 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
   final _tablesController = TextEditingController();
   String? _selectedCategory;
   final List<Map<String, dynamic>> _tables = [];
+  XFile? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+  final RestaurantCrud _restaurantCrud = Get.find<RestaurantCrud>();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -43,6 +56,190 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
           _tables.add({'name': 'Table $i', 'seats': ''});
         }
       });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+      if (image != null) {
+        setState(() {
+          _selectedImage = image;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _uploadImageToFirebase(XFile image) async {
+    try {
+      final FirebaseStorage storage = FirebaseStorage.instance;
+      final String fileName = 'restaurants/${DateTime.now().millisecondsSinceEpoch}_${image.name}';
+      final Reference ref = storage.ref().child(fileName);
+      
+      UploadTask uploadTask;
+      if (kIsWeb) {
+        final Uint8List bytes = await image.readAsBytes();
+        uploadTask = ref.putData(bytes);
+      } else {
+        uploadTask = ref.putFile(File(image.path));
+      }
+      
+      // Add timeout to prevent hanging
+      final TaskSnapshot snapshot = await uploadTask.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw TimeoutException('Image upload timed out after 30 seconds');
+        },
+      );
+      final String downloadUrl = await snapshot.ref.getDownloadURL().timeout(
+        const Duration(seconds: 10),
+      );
+      return downloadUrl;
+    } catch (e) {
+      print('Error uploading image: $e');
+      return null;
+    }
+  }
+
+  Future<void> _addRestaurant() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    // Validate required fields
+    if (_selectedCategory == null || _selectedCategory!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a breakfast category'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a restaurant name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Upload image if selected (non-blocking - continue even if it fails)
+      String? imageUrl;
+      if (_selectedImage != null) {
+        try {
+          print('Starting image upload...');
+          imageUrl = await _uploadImageToFirebase(_selectedImage!);
+          if (imageUrl == null) {
+            print('Image upload failed, continuing without image');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Image upload failed. Saving restaurant without image.'),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          } else {
+            print('Image uploaded successfully: $imageUrl');
+          }
+        } catch (e) {
+          print('Image upload error: $e');
+          // Continue without image
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Image upload error: $e. Saving restaurant without image.'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      }
+
+      // Format tables data
+      final tablesInfo = _tables.map((table) => 
+        '${table['name']}: ${table['seats']} seats'
+      ).join(', ');
+
+      // Create restaurant model
+      print('Creating restaurant model...');
+      final restaurant = RestaurantModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text.trim(),
+        category: _selectedCategory!,
+        distance: _locationController.text.trim().isEmpty 
+            ? 'Unknown distance' 
+            : _locationController.text.trim(),
+        rating: 0.0, // Default rating
+        tables: tablesInfo.isEmpty ? '${_tables.length} tables' : tablesInfo,
+        imagePath: imageUrl,
+        description: null,
+        timeSlots: const [
+          '7:00 AM',
+          '8:00 AM',
+          '9:00 AM',
+          '10:00 AM',
+          '11:00 AM',
+        ],
+      );
+
+      // Add restaurant to Firestore with timeout
+      print('Saving restaurant to Firestore...');
+      await _restaurantCrud.addRestaurant(restaurant).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw TimeoutException('Firestore save timed out after 15 seconds');
+        },
+      );
+      print('Restaurant saved successfully!');
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Restaurant added successfully!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding restaurant: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -112,50 +309,106 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFFE0E0E0),
-                            width: 2,
-                            style: BorderStyle.solid,
+                      GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          width: double.infinity,
+                          height: _selectedImage != null ? 200 : null,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: const Color(0xFFE0E0E0),
+                              width: 2,
+                              style: BorderStyle.solid,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: _selectedImage != null ? Colors.transparent : null,
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 56,
-                              height: 56,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF5F5F5),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.photo_library_outlined,
-                                size: 28,
-                                color: Color(0xFF888888),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Add a cover photo',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF2C2C2C),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Ideal: wide shot of your breakfast setup or storefront.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF888888),
-                              ),
-                            ),
-                          ],
+                          child: _selectedImage != null
+                              ? Stack(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: kIsWeb
+                                          ? FutureBuilder<Uint8List>(
+                                              future: _selectedImage!.readAsBytes(),
+                                              builder: (context, snapshot) {
+                                                if (snapshot.hasData) {
+                                                  return Image.memory(
+                                                    snapshot.data!,
+                                                    width: double.infinity,
+                                                    height: double.infinity,
+                                                    fit: BoxFit.cover,
+                                                  );
+                                                }
+                                                return const Center(
+                                                  child: CircularProgressIndicator(),
+                                                );
+                                              },
+                                            )
+                                          : Image.file(
+                                              File(_selectedImage!.path),
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                              fit: BoxFit.cover,
+                                            ),
+                                    ),
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: IconButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedImage = null;
+                                          });
+                                        },
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black54,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF5F5F5),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.photo_library_outlined,
+                                        size: 28,
+                                        color: Color(0xFF888888),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      'Add a cover photo',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF2C2C2C),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      'Ideal: wide shot of your breakfast setup or storefront.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF888888),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -475,18 +728,7 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
         width: double.infinity,
         margin: const EdgeInsets.all(20),
         child: ElevatedButton(
-          onPressed: () {
-            // Add restaurant logic
-            if (_formKey.currentState!.validate()) {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Restaurant added successfully!'),
-                  backgroundColor: Color(0xFF4CAF50),
-                ),
-              );
-            }
-          },
+          onPressed: _isLoading ? null : _addRestaurant,
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.secondary,
             foregroundColor: Colors.white,
@@ -495,14 +737,24 @@ class _AddRestaurantScreenState extends State<AddRestaurantScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
+            disabledBackgroundColor: Colors.grey,
           ),
-          child: const Text(
-            'Add restaurant',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          child: _isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Text(
+                  'Add restaurant',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
