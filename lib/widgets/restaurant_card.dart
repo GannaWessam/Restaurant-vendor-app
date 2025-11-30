@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import '../models/restaurant_model.dart';
 
 class RestaurantCard extends StatelessWidget {
@@ -27,7 +28,7 @@ class RestaurantCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Image section
-          if (restaurant.imagePath != null && restaurant.imagePath!.isNotEmpty)
+          if (restaurant.imageBase64 != null && restaurant.imageBase64!.isNotEmpty)
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
@@ -37,8 +38,8 @@ class RestaurantCard extends StatelessWidget {
                 height: 140,
                 width: double.infinity,
                 color: const Color(0xFFE8F5E9),
-                child: Image.network(
-                  restaurant.imagePath!,
+                child: Image.memory(
+                  base64Decode(restaurant.imageBase64!),
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return _buildPlaceholderImage();

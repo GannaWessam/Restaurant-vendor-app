@@ -1,49 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/restaurant_model.dart';
 import '../widgets/restaurant_card.dart';
-import '../db/restaurant_crud.dart';
-import 'add_restaurant_screen.dart';
+import '../controllers/vendor_dashboard_controller.dart';
 
-class VendorDashboard extends StatefulWidget {
+class VendorDashboard extends StatelessWidget {
   const VendorDashboard({super.key});
 
   @override
-  State<VendorDashboard> createState() => _VendorDashboardState();
-}
-
-class _VendorDashboardState extends State<VendorDashboard> {
-  final RestaurantCrud _restaurantCrud = Get.find<RestaurantCrud>();
-  List<RestaurantModel> _restaurants = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRestaurants();
-  }
-
-  Future<void> _loadRestaurants() async {
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final restaurants = await _restaurantCrud.getAllRestaurants();
-      setState(() {
-        _restaurants = restaurants;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error loading restaurants: $e');
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final VendorDashboardController controller = Get.find<VendorDashboardController>();
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -193,13 +159,13 @@ class _VendorDashboardState extends State<VendorDashboard> {
                                   ),
                                 ),
                                 const SizedBox(height: 10),
-                                Row(
+                                Obx(() => Row(
                                   children: [
-                                    _buildStatChip('Restaurants', '${_restaurants.length}'),
+                                    _buildStatChip('Restaurants', '${controller.restaurants.length}'),
                                     const SizedBox(width: 6),
-                                    _buildStatChip('Breakfast cuisines', '${_getUniqueCategories().length}'),
+                                    _buildStatChip('Breakfast cuisines', '${controller.getUniqueCategories().length}'),
                                   ],
-                                ),
+                                )),
                               ],
                             ),
                           ),
@@ -227,53 +193,58 @@ class _VendorDashboardState extends State<VendorDashboard> {
                           ),
                           const SizedBox(height: 14),
                           // Restaurant cards
-                          if (_isLoading)
-                            const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(40.0),
-                                child: CircularProgressIndicator(),
-                              ),
-                            )
-                          else if (_restaurants.isEmpty)
-                            Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(40.0),
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.restaurant_outlined,
-                                      size: 64,
-                                      color: Colors.grey[400],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'No restaurants yet',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Tap the + button to add your first restaurant',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[500],
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                          Obx(() {
+                            if (controller.isLoading.value) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(40.0),
+                                  child: CircularProgressIndicator(),
                                 ),
-                              ),
-                            )
-                          else
-                            ..._restaurants.map((restaurant) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: RestaurantCard(restaurant: restaurant),
                               );
-                            }).toList(),
+                            } else if (controller.restaurants.isEmpty) {
+                              return Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(40.0),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.restaurant_outlined,
+                                        size: 64,
+                                        color: Colors.grey[400],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No restaurants yet',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Tap the + button to add your first restaurant',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            } else {
+                              return Column(
+                                children: controller.restaurants.map((restaurant) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 16),
+                                    child: RestaurantCard(restaurant: restaurant),
+                                  );
+                                }).toList(),
+                              );
+                            }
+                          }),
                         ],
                       ),
                     ),
@@ -286,14 +257,9 @@ class _VendorDashboardState extends State<VendorDashboard> {
               right: 30,
               child: GestureDetector(
                 onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddRestaurantScreen(),
-                    ),
-                  );
+                  await Get.toNamed('/add-restaurant');
                   // Refresh restaurants list when returning from add screen
-                  _loadRestaurants();
+                  controller.refreshRestaurants();
                 },
                 child: Container(
                   width: 56,
@@ -468,11 +434,6 @@ class _VendorDashboardState extends State<VendorDashboard> {
         ],
       ),
     );
-  }
-
-  List<String> _getUniqueCategories() {
-    final categories = _restaurants.map((r) => r.category).toSet().toList();
-    return categories;
   }
 }
 

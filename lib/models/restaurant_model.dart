@@ -7,7 +7,7 @@ class RestaurantModel {
   final String distance;
   final double rating;
   final String tables;
-  final String? imagePath;
+  final String? imageBase64; // Changed from imagePath to imageBase64 for Firestore storage
   final String? description;
   final List<String> timeSlots;
 
@@ -18,7 +18,7 @@ class RestaurantModel {
     required this.distance,
     required this.rating,
     required this.tables,
-    this.imagePath,
+    this.imageBase64, // Changed from imagePath to imageBase64
     this.description,
     required this.timeSlots,
   });
@@ -32,7 +32,7 @@ class RestaurantModel {
       'distance': distance,
       'rating': rating,
       'tables': tables,
-      'imagePath': imagePath,
+      'imageBase64': imageBase64, // Changed from imagePath to imageBase64
       'description': description,
       'timeSlots': timeSlots,
     };
@@ -47,9 +47,9 @@ class RestaurantModel {
       distance: json['distance'] as String? ?? 'Unknown distance',
       rating: (json['rating'] as num? ?? 0).toDouble(),
       tables: json['tables'] as String? ?? '0 tables',
-      imagePath: json['imagePath'] as String?,
+      imageBase64: json['imageBase64'] as String?, // Changed from imagePath to imageBase64
       description: json['description'] as String?,
-      timeSlots: json['timeSlots'] != null 
+      timeSlots: json['timeSlots'] != null
           ? List<String>.from(json['timeSlots'])
           : ['7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM'],
     );
@@ -63,7 +63,7 @@ class RestaurantModel {
     String? distance,
     double? rating,
     String? tables,
-    String? imagePath,
+    String? imageBase64, // Changed from imagePath to imageBase64
     String? description,
     List<String>? timeSlots,
   }) {
@@ -74,7 +74,7 @@ class RestaurantModel {
       distance: distance ?? this.distance,
       rating: rating ?? this.rating,
       tables: tables ?? this.tables,
-      imagePath: imagePath ?? this.imagePath,
+      imageBase64: imageBase64 ?? this.imageBase64, // Changed from imagePath to imageBase64
       description: description ?? this.description,
       timeSlots: timeSlots ?? this.timeSlots,
     );

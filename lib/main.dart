@@ -1,17 +1,16 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_instance/src/bindings_interface.dart';
-import 'package:get/get_navigation/src/root/get_material_app.dart';
-import 'package:get/get_navigation/src/routes/get_route.dart';
 import 'package:restaurant_reservation_app/screens/my_reservations_screen.dart';
 import 'controllers/my_reservations_controller.dart';
+import 'controllers/vendor_dashboard_controller.dart';
+import 'controllers/add_restaurant_controller.dart';
 import 'db/reservations_crud.dart';
 import 'db/restaurant_crud.dart';
 import 'db/db_instance.dart';
 import 'firebase_options.dart';
 import 'screens/vendor_dashboard.dart';
+import 'screens/add_restaurant_screen.dart';
 
 // import 'package:firebase_core/firebase_core.dart';
 // import 'firebase_options.dart';
@@ -27,6 +26,7 @@ void main() async {
   Get.put(CloudDb(), permanent: true);
   Get.put(ReservationsCrud(), permanent: true);
   Get.put(RestaurantCrud(), permanent: true);
+  Get.put(VendorDashboardController(), permanent: true);
   
   runApp(const MyApp());
 }
@@ -42,6 +42,11 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       getPages: [
         GetPage(name: '/', page: ()=> const VendorDashboard()),
+        GetPage(name: '/add-restaurant',
+            page:()=> const AddRestaurantScreen(),
+            binding: BindingsBuilder((){
+              Get.lazyPut(()=>AddRestaurantController());
+            })),
         GetPage(name: '/my-reservations',
             page:()=> const MyReservationsScreen(),
             binding: BindingsBuilder((){
