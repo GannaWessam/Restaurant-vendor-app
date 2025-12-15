@@ -53,7 +53,7 @@ class AddRestaurantScreen extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => Get.back(),
                     icon: const Icon(Icons.close, size: 24),
                     style: IconButton.styleFrom(
                       backgroundColor: const Color(0xFFF5F5F5),
@@ -191,60 +191,25 @@ class AddRestaurantScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: controller.locationController,
-                              decoration: InputDecoration(
-                                hintText: 'Add location',
-                                hintStyle: const TextStyle(
-                                  color: Color(0xFFAAAAAA),
-                                  fontSize: 14,
-                                ),
-                                filled: true,
-                                fillColor: const Color(0xFFF8F8F8),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
-                                ),
-                              ),
-                            ),
+                      TextFormField(
+                        controller: controller.locationController,
+                        decoration: InputDecoration(
+                          hintText: 'Add location',
+                          hintStyle: const TextStyle(
+                            color: Color(0xFFAAAAAA),
+                            fontSize: 14,
                           ),
-                          const SizedBox(width: 12),
-                          ElevatedButton(
-                            onPressed: () {
-                              // Get current location logic
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF2C2C2C),
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 14,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: const BorderSide(
-                                  color: Color(0xFFE0E0E0),
-                                  width: 1,
-                                ),
-                              ),
-                            ),
-                            child: const Text(
-                              'Get current location',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                          filled: true,
+                          fillColor: const Color(0xFFF8F8F8),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
                           ),
-                        ],
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       // Restaurant name

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'dart:convert';
 import '../models/restaurant_model.dart';
+import '../screens/restaurant_detail_screen.dart';
 
 class RestaurantCard extends StatelessWidget {
   final RestaurantModel restaurant;
@@ -12,7 +14,11 @@ class RestaurantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        Get.to(() => RestaurantDetailScreen(restaurant: restaurant));
+      },
+      child: Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -84,34 +90,22 @@ class RestaurantCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Opening time and tables
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      restaurant.timeSlots.isNotEmpty 
-                          ? 'Opens ${restaurant.timeSlots.first}' 
-                          : 'Closed',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                    Text(
-                      '${restaurant.tables} tables',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF666666),
-                      ),
-                    ),
-                  ],
+                // Opening time
+                Text(
+                  restaurant.timeSlots.isNotEmpty 
+                      ? 'Opens ${restaurant.timeSlots.first}' 
+                      : 'Closed',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF666666),
+                  ),
                 ),
               ],
             ),
           ),
         ],
+      ),
       ),
     );
   }

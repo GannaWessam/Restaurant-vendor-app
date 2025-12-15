@@ -1,7 +1,10 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:restaurant_reservation_app/screens/my_reservations_screen.dart';
+import 'package:restaurant_reservation_app/services/notification_service.dart';
 import 'controllers/my_reservations_controller.dart';
 import 'controllers/vendor_dashboard_controller.dart';
 import 'controllers/add_restaurant_controller.dart';
@@ -11,23 +14,179 @@ import 'db/db_instance.dart';
 import 'firebase_options.dart';
 import 'screens/vendor_dashboard.dart';
 import 'screens/add_restaurant_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'controllers/notifications_controller.dart';
 
-// import 'package:firebase_core/firebase_core.dart';
-// import 'firebase_options.dart';
+// Get specific device token (static for one mobile in our case - but will work dynamically on web)
+final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+
+// Store the web token so it can be accessed from other parts of the app
+String? webFcmToken;
+
+Future<String?> getToken() async {
+try {
+// For web, configure the service worker path if needed
+if (kIsWeb) {
+await _fcm.setAutoInitEnabled(true);
+}
+String? token = await _fcm.getToken();
+if (kIsWeb && token != null) {
+webFcmToken = token; // Store web token
+}
+print("\n\n\n Device Token: $token \n\n\n");
+return token;
+} catch (e) {
+print("\n\n\n Error getting FCM token: $e \n\n\n");
+// Don't crash the app if token retrieval fails
+return null;
+}
+}
+
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('Background message received: ${message.messageId}');
+  
+  // Show local notification when app is in background or terminated
+  // This allows users to tap the notification and navigate to the app
+  await NotificationService.showBackground(message);
+}
+
+
 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // TODO: Initialize Firebase after running: flutterfire configure
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  Get.put(CloudDb(), permanent: true);
-  Get.put(ReservationsCrud(), permanent: true);
-  Get.put(RestaurantCrud(), permanent: true);
-  Get.put(VendorDashboardController(), permanent: true);
-  
+  // Add error handling for Flutter errors
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    print('Flutter Error: ${details.exception}');
+    print('Stack trace: ${details.stack}');
+  };
+
+  try {
+    // Initialize Firebase
+    print('Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized successfully');
+  } catch (e, stackTrace) {
+    print('Error initializing Firebase: $e');
+    print('Stack trace: $stackTrace');
+    // Continue anyway - app might still work without Firebase in some cases
+  }
+
+  // Request notification permission for all platforms
+  // This should be done early, before getting the token
+  try {
+    final NotificationSettings settings = await _fcm.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    print("Notification permission status: ${settings.authorizationStatus}");
+
+    // For web, small delay to ensure service worker is ready
+    if (kIsWeb) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+  } catch (e) {
+    print("Error requesting notification permission: $e");
+  }
+
+  // Get token (with error handling) - defer to avoid blocking app startup
+  getToken().then((token) {
+    if (kIsWeb && token != null) {
+      webFcmToken = token;
+    }
+  }).catchError((e) {
+    print("Failed to get FCM token: $e");
+  });
+
+  try {
+    FirebaseMessaging.onBackgroundMessage(
+      firebaseMessagingBackgroundHandler,
+    );
+  } catch (e) {
+    print("Error setting up background message handler: $e");
+  }
+
+  // Init local notifications
+  try {
+    await NotificationService.init();
+    print('NotificationService initialized successfully');
+  } catch (e) {
+    print("Error initializing NotificationService: $e");
+  }
+
+  // Listen to foreground messages
+  try {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      NotificationService.showForeground(message);
+    });
+  } catch (e) {
+    print("Error setting up foreground message listener: $e");
+  }
+
+  // Handle notification when app is opened from background state
+  try {
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('App opened from background via notification: ${message.messageId}');
+      // Navigate to notifications screen
+      // Use a small delay to ensure GetX context is ready
+      Future.delayed(const Duration(milliseconds: 500), () {
+        try {
+          Get.toNamed('/notifications');
+        } catch (e) {
+          print('Error navigating to notifications from background: $e');
+        }
+      });
+    });
+  } catch (e) {
+    print("Error setting up onMessageOpenedApp listener: $e");
+  }
+
+  // Handle notification when app is opened from terminated state
+  try {
+    final RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+    if (initialMessage != null) {
+      print('App opened from terminated state via notification: ${initialMessage.messageId}');
+      // Navigate to notifications screen after app initialization
+      // Use a longer delay to ensure GetX context is fully ready
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        try {
+          Get.toNamed('/notifications');
+        } catch (e) {
+          print('Error navigating to notifications from terminated: $e');
+        }
+      });
+    }
+  } catch (e) {
+    print("Error checking initial message: $e");
+  }
+
+  // Initialize GetX dependencies
+  try {
+    Get.put(CloudDb(), permanent: true);
+    Get.put(NotificationService(), permanent: true);
+    Get.put(NotificationsController(), permanent: true);
+    Get.put(ReservationsCrud(), permanent: true);
+    Get.put(RestaurantCrud(), permanent: true);
+    Get.put(VendorDashboardController(), permanent: true);
+    print('All dependencies initialized successfully');
+  } catch (e, stackTrace) {
+    print('Error initializing dependencies: $e');
+    print('Stack trace: $stackTrace');
+    // Don't continue if dependencies fail
+    rethrow;
+  }
+
   runApp(const MyApp());
 }
 
@@ -51,7 +210,8 @@ class MyApp extends StatelessWidget {
             page:()=> const MyReservationsScreen(),
             binding: BindingsBuilder((){
               Get.lazyPut(()=>MyReservationsController());
-            }))
+            })),
+        GetPage(name: '/notifications', page: () => const NotificationsScreen()),
       ],
 
       // Apply custom theme with color palette

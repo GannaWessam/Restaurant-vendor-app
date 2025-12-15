@@ -182,33 +182,41 @@ class AddRestaurantController extends GetxController {
 
       print('Restaurant saved successfully!');
 
-      // Show success message and navigate back
+      // Clear form
+      _clearForm();
+
+      // Navigate back first, then show success message
+      Get.back();
+      
+      // Show success message
       Get.snackbar(
         'Success',
-        'Your restaurant added successfully!',
+        'Restaurant added successfully!',
         backgroundColor: const Color(0xFF4CAF50),
         colorText: Colors.white,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
         snackPosition: SnackPosition.BOTTOM,
         margin: const EdgeInsets.all(16),
         borderRadius: 8,
         icon: const Icon(Icons.check_circle, color: Colors.white),
       );
 
-      // Clear form
-      _clearForm();
-
-      // Navigate back
-      Get.back();
-
       // Refresh restaurants list in dashboard (will be handled by the dashboard when it receives focus)
 
     } catch (e) {
+      print('Error adding restaurant: $e');
+      
+      // Show failure message and stay on the same page
       Get.snackbar(
-        'Error',
-        'Error adding restaurant: $e',
+        'Failed',
+        'Failed to add restaurant. Please try again.',
         backgroundColor: Colors.red,
         colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        snackPosition: SnackPosition.BOTTOM,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 8,
+        icon: const Icon(Icons.error, color: Colors.white),
       );
     } finally {
       isLoading.value = false;
