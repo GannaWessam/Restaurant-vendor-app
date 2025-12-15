@@ -227,7 +227,7 @@ class NotificationService {
   }) async {
     try {
       await Dio().post(
-        "http://localhost/send-notification",
+        "https://notification-app-two-neon.vercel.app/send-notification",
         data: {
           "token": token,
           "title": title,
