@@ -45,5 +45,8 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Location permission description for Geolocator -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app uses your location to fill in your restaurant location automatically.</string>
 </dict>
 </plist>

@@ -10,6 +10,8 @@ class RestaurantModel {
   final String? imageBase64; // Changed from imagePath to imageBase64 for Firestore storage
   final String? description;
   final List<String> timeSlots;
+  final double? latitude;
+  final double? longitude;
 
   RestaurantModel({
     required this.id,
@@ -21,6 +23,8 @@ class RestaurantModel {
     this.imageBase64, // Changed from imagePath to imageBase64
     this.description,
     required this.timeSlots,
+    this.latitude,
+    this.longitude,
   });
 
   // Convert RestaurantModel to JSON
@@ -35,6 +39,8 @@ class RestaurantModel {
       'imageBase64': imageBase64, // Changed from imagePath to imageBase64
       'description': description,
       'timeSlots': timeSlots,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
@@ -52,6 +58,8 @@ class RestaurantModel {
       timeSlots: json['timeSlots'] != null
           ? List<String>.from(json['timeSlots'])
           : ['7:00 AM', '8:00 AM', '9:00 AM', '10:00 AM', '11:00 AM'],
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -66,6 +74,8 @@ class RestaurantModel {
     String? imageBase64, // Changed from imagePath to imageBase64
     String? description,
     List<String>? timeSlots,
+    double? latitude,
+    double? longitude,
   }) {
     return RestaurantModel(
       id: id ?? this.id,
@@ -77,6 +87,8 @@ class RestaurantModel {
       imageBase64: imageBase64 ?? this.imageBase64, // Changed from imagePath to imageBase64
       description: description ?? this.description,
       timeSlots: timeSlots ?? this.timeSlots,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
     );
   }
 }

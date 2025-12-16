@@ -63,27 +63,50 @@ class VendorDashboard extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  // Menu icon
-                                  GestureDetector(
-                                    onTap: () {
-                                      Scaffold.of(scaffoldContext).openEndDrawer();
-                                    },
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
+                                  // Actions: notifications + menu
+                                  Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          Get.toNamed('/notifications');
+                                        },
+                                        child: Container(
+                                          width: 38,
+                                          height: 38,
+                                          margin: const EdgeInsets.only(right: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            Icons.notifications_none,
+                                            color: Theme.of(context).colorScheme.secondary,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () {
+                                          Scaffold.of(scaffoldContext).openEndDrawer();
+                                        },
+                                        child: Container(
+                                          width: 38,
+                                          height: 38,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Icon(
+                                            Icons.menu,
+                                            color: Theme.of(context).colorScheme.secondary,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  child: Icon(
-                                    Icons.menu, 
-                                    color: Theme.of(context).colorScheme.secondary,
-                                    size: 20,
-                                  ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
                           const SizedBox(height: 6),
                           // Vendor name
                           // const Text(
@@ -373,6 +396,23 @@ class VendorDashboard extends StatelessWidget {
                   //     // Get.toNamed('/restaurants');
                   //   },
                   // ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.category_outlined,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                    title: Text(
+                      'Manage categories',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () {
+                      Get.back();
+                      Get.toNamed('/manage-categories');
+                    },
+                  ),
                   ListTile(
                     leading: Icon(
                       Icons.calendar_today_outlined,

@@ -10,13 +10,8 @@ class AddRestaurantScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AddRestaurantController controller = Get.find<AddRestaurantController>();
-  final _formKey = GlobalKey<FormState>();
-
-
-
-
-
+    final AddRestaurantController controller =
+        Get.find<AddRestaurantController>();
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -68,7 +63,7 @@ class AddRestaurantScreen extends StatelessWidget {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20.0),
                 child: Form(
-                  key: _formKey,
+                  key: controller.formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -193,14 +188,32 @@ class AddRestaurantScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: controller.locationController,
+                        readOnly: true,
+                        enableInteractiveSelection: false,
                         decoration: InputDecoration(
-                          hintText: 'Add location',
+                          hintText: 'Get current location',
                           hintStyle: const TextStyle(
                             color: Color(0xFFAAAAAA),
                             fontSize: 14,
                           ),
                           filled: true,
                           fillColor: const Color(0xFFF8F8F8),
+                          suffixIcon: Obx(() {
+                            return IconButton(
+                              onPressed: controller.isGettingLocation.value
+                                  ? null
+                                  : controller.getCurrentLocation,
+                              icon: controller.isGettingLocation.value
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.my_location),
+                            );
+                          }),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: BorderSide.none,
@@ -253,85 +266,50 @@ class AddRestaurantScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Obx(() => DropdownMenu<String>(
-                        initialSelection: controller.selectedCategory.value.isEmpty ? null : controller.selectedCategory.value,
-                        hintText: 'Choose a breakfast cuisine',
-                        width: MediaQuery.of(context).size.width - 40,
-                        menuHeight: 300,
-                        textStyle: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF2C2C2C),
-                        ),
-                        inputDecorationTheme: InputDecorationTheme(
-                          filled: true,
-                          fillColor: const Color(0xFFF8F8F8),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          hintStyle: const TextStyle(
-                            color: Color(0xFFAAAAAA),
+                      Obx(() {
+                        final categories = controller.categories;
+                        return DropdownMenu<String>(
+                          initialSelection: controller.selectedCategory.value.isEmpty
+                              ? null
+                              : controller.selectedCategory.value,
+                          hintText: categories.isEmpty
+                              ? 'No categories yet – add some from Manage categories'
+                              : 'Choose a breakfast cuisine',
+                          width: MediaQuery.of(context).size.width - 40,
+                          menuHeight: 300,
+                          textStyle: const TextStyle(
                             fontSize: 14,
+                            color: Color(0xFF2C2C2C),
                           ),
-                        ),
-                        dropdownMenuEntries: const [
-                          DropdownMenuEntry(
-                            value: 'American Breakfast',
-                            label: 'American Breakfast',
+                          inputDecorationTheme: InputDecorationTheme(
+                            filled: true,
+                            fillColor: const Color(0xFFF8F8F8),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            hintStyle: const TextStyle(
+                              color: Color(0xFFAAAAAA),
+                              fontSize: 14,
+                            ),
                           ),
-                          DropdownMenuEntry(
-                            value: 'Continental Breakfast',
-                            label: 'Continental Breakfast',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'English Breakfast',
-                            label: 'English Breakfast',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'French Breakfast',
-                            label: 'French Breakfast',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Mediterranean Breakfast',
-                            label: 'Mediterranean Breakfast',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Middle Eastern Breakfast',
-                            label: 'Middle Eastern Breakfast',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Asian Breakfast',
-                            label: 'Asian Breakfast',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Buffet Style',
-                            label: 'Buffet Style',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Brunch',
-                            label: 'Brunch',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Healthy & Organic',
-                            label: 'Healthy & Organic',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Vegan & Vegetarian',
-                            label: 'Vegan & Vegetarian',
-                          ),
-                          DropdownMenuEntry(
-                            value: 'Coffee & Pastries',
-                            label: 'Coffee & Pastries',
-                          ),
-                        ],
-                        onSelected: (value) {
-                          controller.selectedCategory.value = value ?? '';
-                        },
-                      )),
+                          dropdownMenuEntries: categories
+                              .map(
+                                (c) => DropdownMenuEntry<String>(
+                                  value: c.name,
+                                  label: c.name,
+                                ),
+                              )
+                              .toList(),
+                          onSelected: (value) {
+                            controller.selectedCategory.value = value ?? '';
+                          },
+                        );
+                      }),
                       const SizedBox(height: 24),
                       // Number of tables
                       const Text(

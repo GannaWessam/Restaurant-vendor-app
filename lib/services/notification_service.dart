@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -218,18 +219,74 @@ class NotificationService {
     );
   }
 
-  Future<void> sendNotificationToDevice({
-    required String token,       // target device token
+  // Old single-token method (kept for reference; prefer using sendNotificationToAllDevices)
+  // Future<void> sendNotificationToDevice({
+  //   required String token,       // target device token
+  //   required String title,
+  //   required String body,
+  //   required String reservedRestaurant,
+  //   Map<String, dynamic>? data,
+  // }) async {
+  //   try {
+  //     await Dio().post(
+  //       "https://notification-app-two-neon.vercel.app/send-notification",
+  //       data: {
+  //         "token": token,
+  //         "title": title,
+  //         "body": body,
+  //         "data": {
+  //           "reserved restaurant": reservedRestaurant,
+  //           ...?data,
+  //         }
+  //       },
+  //     );
+  //
+  //     print("Notification sent successfully");
+  //   } catch (e) {
+  //     print("Error sending notification: $e");
+  //   }
+  // }
+
+  // Fetch all device tokens stored in Firestore
+  Future<List<String>> _getAllDeviceTokens() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('deviceTokens')
+          .get();
+
+      final tokens = snapshot.docs
+          .map((doc) => (doc.data()['token'] ?? '') as String)
+          .where((t) => t.isNotEmpty)
+          .toList();
+
+      print("Fetched ${tokens.length} device tokens from Firestore");
+      print("Tokens:\n\n\n\n\n $tokens \n\n\n\n\n\n");
+      return tokens;
+    } catch (e) {
+      print("Error fetching device tokens from Firestore: $e");
+      return [];
+    }
+  }
+
+  /// Send notification to all stored device tokens (array of tokens to the API)
+  Future<void> sendNotificationToAllDevices({
     required String title,
     required String body,
     required String reservedRestaurant,
     Map<String, dynamic>? data,
   }) async {
     try {
+      final tokens = await _getAllDeviceTokens();
+      if (tokens.isEmpty) {
+        print("No device tokens available to send notification");
+        return;
+      }
+
       await Dio().post(
         "https://notification-app-two-neon.vercel.app/send-notification",
         data: {
-          "token": token,
+          // Send array of tokens instead of a single static token
+          "tokens": tokens,
           "title": title,
           "body": body,
           "data": {

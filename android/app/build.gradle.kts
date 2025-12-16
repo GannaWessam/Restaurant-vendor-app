@@ -9,6 +9,8 @@ plugins {
 }
 
 android {
+    // Unique namespace for the Restaurant Vendor app
+    // namespace = "com.example.restaurant_vendor_app"
     namespace = "com.example.restaurant_reservation_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.3.13750724"
@@ -24,7 +26,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Unique Application ID so this app does not replace the previous one
+        //applicationId = "com.example.restaurant_vendor_app"
         applicationId = "com.example.restaurant_reservation_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.

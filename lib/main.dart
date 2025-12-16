@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -8,16 +9,19 @@ import 'package:restaurant_reservation_app/services/notification_service.dart';
 import 'controllers/my_reservations_controller.dart';
 import 'controllers/vendor_dashboard_controller.dart';
 import 'controllers/add_restaurant_controller.dart';
+import 'controllers/category_controller.dart';
 import 'db/reservations_crud.dart';
 import 'db/restaurant_crud.dart';
+import 'db/category_crud.dart';
 import 'db/db_instance.dart';
 import 'firebase_options.dart';
 import 'screens/vendor_dashboard.dart';
 import 'screens/add_restaurant_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/manage_categories_screen.dart';
 import 'controllers/notifications_controller.dart';
 
-// Get specific device token (static for one mobile in our case - but will work dynamically on web)
+// Get FCM device token on app launch and store it in Firestore
 final FirebaseMessaging _fcm = FirebaseMessaging.instance;
 
 // Store the web token so it can be accessed from other parts of the app
@@ -34,6 +38,22 @@ if (kIsWeb && token != null) {
 webFcmToken = token; // Store web token
 }
 print("\n\n\n Device Token: $token \n\n\n");
+
+// Save / update this device token in Firestore so backend can send to all devices
+try {
+await FirebaseFirestore.instance
+.collection('deviceTokens')
+.doc(token) // use token as document ID to avoid duplicates
+.set({
+'token': token,
+'platform': defaultTargetPlatform.toString(),
+'updatedAt': FieldValue.serverTimestamp(),
+}, SetOptions(merge: true));
+print("Device token saved to Firestore");
+} catch (e) {
+print("Error saving device token to Firestore: $e");
+}
+
 return token;
 } catch (e) {
 print("\n\n\n Error getting FCM token: $e \n\n\n");
@@ -178,6 +198,7 @@ void main() async {
     Get.put(NotificationsController(), permanent: true);
     Get.put(ReservationsCrud(), permanent: true);
     Get.put(RestaurantCrud(), permanent: true);
+    Get.put(CategoryCrud(), permanent: true);
     Get.put(VendorDashboardController(), permanent: true);
     print('All dependencies initialized successfully');
   } catch (e, stackTrace) {
@@ -201,16 +222,27 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       getPages: [
         GetPage(name: '/', page: ()=> const VendorDashboard()),
-        GetPage(name: '/add-restaurant',
-            page:()=> const AddRestaurantScreen(),
-            binding: BindingsBuilder((){
-              Get.lazyPut(()=>AddRestaurantController());
-            })),
-        GetPage(name: '/my-reservations',
-            page:()=> const MyReservationsScreen(),
-            binding: BindingsBuilder((){
-              Get.lazyPut(()=>MyReservationsController());
-            })),
+        GetPage(
+          name: '/add-restaurant',
+          page:()=> const AddRestaurantScreen(),
+          binding: BindingsBuilder((){
+            Get.lazyPut(()=>AddRestaurantController());
+          }),
+        ),
+        GetPage(
+          name: '/my-reservations',
+          page:()=> const MyReservationsScreen(),
+          binding: BindingsBuilder((){
+            Get.lazyPut(()=>MyReservationsController());
+          }),
+        ),
+        GetPage(
+          name: '/manage-categories',
+          page:()=> const ManageCategoriesScreen(),
+          binding: BindingsBuilder((){
+            Get.lazyPut(()=>CategoryController());
+          }),
+        ),
         GetPage(name: '/notifications', page: () => const NotificationsScreen()),
       ],
 

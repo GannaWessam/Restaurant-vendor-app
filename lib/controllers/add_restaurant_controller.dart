@@ -3,22 +3,33 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import '../db/restaurant_crud.dart';
+import '../db/category_crud.dart';
 import '../models/restaurant_model.dart';
+import '../models/category_model.dart';
 
 class AddRestaurantController extends GetxController {
   final RestaurantCrud _restaurantCrud = Get.find<RestaurantCrud>();
+  final CategoryCrud _categoryCrud = Get.find<CategoryCrud>();
 
   // Form data
+  final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   final locationController = TextEditingController();
   final tablesController = TextEditingController();
 
   // Reactive state
   final RxString selectedCategory = ''.obs;
+  final RxList<CategoryModel> categories = <CategoryModel>[].obs;
   final RxList<Map<String, dynamic>> tables = <Map<String, dynamic>>[].obs;
   final Rx<XFile?> selectedImage = Rx<XFile?>(null);
   final RxBool isLoading = false.obs;
+  final RxBool isGettingLocation = false.obs;
+
+  // Last fetched coordinates
+  double? currentLatitude;
+  double? currentLongitude;
 
   @override
   void onInit() {
@@ -29,6 +40,8 @@ class AddRestaurantController extends GetxController {
       {'name': 'Table 2', 'seats': ''},
       {'name': 'Table 3', 'seats': ''},
     ]);
+
+    _loadCategories();
   }
 
   @override
@@ -50,12 +63,43 @@ class AddRestaurantController extends GetxController {
     }
   }
 
-  // Pick image from gallery
+  // Pick image from gallery or camera (preserving XFile storage for base64 conversion)
   Future<void> pickImage() async {
+    Get.bottomSheet(
+      SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from gallery'),
+              onTap: () async {
+                Get.back();
+                await _pickImageFromSource(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Take a photo'),
+              onTap: () async {
+                Get.back();
+                await _pickImageFromSource(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+    );
+  }
+
+  Future<void> _pickImageFromSource(ImageSource source) async {
     try {
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         maxWidth: 1920,
         maxHeight: 1080,
         imageQuality: 85,
@@ -76,6 +120,84 @@ class AddRestaurantController extends GetxController {
   // Remove selected image
   void removeImage() {
     selectedImage.value = null;
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final result = await _categoryCrud.getAllCategories();
+      categories.value = result;
+    } catch (e) {
+      print('Error loading categories in AddRestaurantController: $e');
+      categories.clear();
+    }
+  }
+
+  // Get current location using Geolocator and fill the locationController
+  Future<void> getCurrentLocation() async {
+    try {
+      isGettingLocation.value = true;
+
+      // Check if location services are enabled
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Get.snackbar(
+          'Location Services Disabled',
+          'Please enable location services on your device.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      // Check and request permission
+      LocationPermission permission = await Geolocator.checkPermission();
+
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied) {
+        Get.snackbar(
+          'Permission Denied',
+          'Location permission is required to get your current location.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        Get.snackbar(
+          'Permission Permanently Denied',
+          'Location permissions are permanently denied. Please enable them from system settings.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      // Get current position
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Store coordinates
+      currentLatitude = position.latitude;
+      currentLongitude = position.longitude;
+
+      // You can format this however you like (e.g., "lat, lng" or address via reverse geocoding)
+      locationController.text =
+          '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+    } catch (e) {
+      Get.snackbar(
+        'Location Error',
+        'Failed to get current location: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isGettingLocation.value = false;
+    }
   }
 
   // Convert image to base64
@@ -144,6 +266,23 @@ class AddRestaurantController extends GetxController {
         }
       }
 
+      // Validate max seats per table (cannot be more than 6)
+      for (final table in tables) {
+        final seatsStr = (table['seats'] ?? '').toString().trim();
+        if (seatsStr.isEmpty) continue;
+
+        final seats = int.tryParse(seatsStr);
+        if (seats != null && seats > 6) {
+          Get.snackbar(
+            'Too Many Seats',
+            'Number of seats at a table cannot be more than 6.',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+          return;
+        }
+      }
+
       // Format tables data
       final tablesInfo = tables.map((table) =>
         '${table['name']}: ${table['seats']} seats'
@@ -169,6 +308,8 @@ class AddRestaurantController extends GetxController {
           '10:00 AM',
           '11:00 AM',
         ],
+        latitude: currentLatitude,
+        longitude: currentLongitude,
       );
 
       // Add restaurant to Firestore
@@ -181,6 +322,16 @@ class AddRestaurantController extends GetxController {
       );
 
       print('Restaurant saved successfully!');
+
+      // Update restaurant count for the selected category
+      try {
+        await _categoryCrud.updateRestaurantCountByName(
+          selectedCategory.value,
+          1,
+        );
+      } catch (e) {
+        print('Error updating restaurant count for category ${selectedCategory.value}: $e');
+      }
 
       // Clear form
       _clearForm();
@@ -235,5 +386,7 @@ class AddRestaurantController extends GetxController {
       {'name': 'Table 3', 'seats': ''},
     ]);
     selectedImage.value = null;
+    currentLatitude = null;
+    currentLongitude = null;
   }
 }
