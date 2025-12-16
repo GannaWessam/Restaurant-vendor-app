@@ -186,7 +186,7 @@ class VendorDashboard extends StatelessWidget {
                                   children: [
                                     _buildStatChip('Restaurants', '${controller.restaurants.length}'),
                                     const SizedBox(width: 6),
-                                    _buildStatChip('Breakfast cuisines', '${controller.getUniqueCategories().length}'),
+                                    _buildStatChip('Breakfast cuisines', '${controller.categories.length}'),
                                   ],
                                 )),
                               ],
@@ -408,9 +408,11 @@ class VendorDashboard extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    onTap: () {
+                    onTap: () async {
                       Get.back();
-                      Get.toNamed('/manage-categories');
+                      await Get.toNamed('/manage-categories');
+                      // Refresh categories list when returning from manage categories screen
+                      Get.find<VendorDashboardController>().refreshCategories();
                     },
                   ),
                   ListTile(
