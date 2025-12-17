@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/restaurant_card.dart';
 import '../controllers/vendor_dashboard_controller.dart';
+import '../controllers/notifications_controller.dart';
 
 class VendorDashboard extends StatelessWidget {
   const VendorDashboard({super.key});
@@ -10,6 +11,8 @@ class VendorDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final VendorDashboardController controller = Get.find<VendorDashboardController>();
+    final NotificationsController notificationsController =
+        Get.find<NotificationsController>();
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -67,23 +70,52 @@ class VendorDashboard extends StatelessWidget {
                                   Row(
                                     children: [
                                       GestureDetector(
-                                        onTap: () {
-                                          Get.toNamed('/notifications');
+                                        onTap: () async {
+                                          await Get.toNamed('/notifications');
+                                          notificationsController.markAllAsRead();
                                         },
-                                        child: Container(
-                                          width: 38,
-                                          height: 38,
-                                          margin: const EdgeInsets.only(right: 8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                          child: Icon(
-                                            Icons.notifications_none,
-                                            color: Theme.of(context).colorScheme.secondary,
-                                            size: 20,
-                                          ),
-                                        ),
+                                        child: Obx(() {
+                                          final hasUnread = notificationsController.notifications
+                                              .any((n) => !n.isRead);
+                                          return Container(
+                                            width: 38,
+                                            height: 38,
+                                            margin: const EdgeInsets.only(right: 8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(10),
+                                            ),
+                                            child: Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                Center(
+                                                  child: Icon(
+                                                    Icons.notifications_none,
+                                                    color: Theme.of(context).colorScheme.secondary,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                                if (hasUnread)
+                                                  Positioned(
+                                                    top: 6,
+                                                    right: 6,
+                                                    child: Container(
+                                                      width: 9,
+                                                      height: 9,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.redAccent,
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(
+                                                          color: Colors.white,
+                                                          width: 1.5,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          );
+                                        }),
                                       ),
                                       GestureDetector(
                                         onTap: () {

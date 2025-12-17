@@ -15,6 +15,7 @@ class CategoryController extends GetxController {
   final RxBool isSaving = false.obs;
 
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
   final Rx<XFile?> selectedImage = Rx<XFile?>(null);
 
   @override
@@ -26,6 +27,7 @@ class CategoryController extends GetxController {
   @override
   void onClose() {
     nameController.dispose();
+    descriptionController.dispose();
     selectedImage.value = null;
     super.onClose();
   }
@@ -42,8 +44,9 @@ class CategoryController extends GetxController {
     }
   }
 
-  Future<void> addCategory() async {
+  Future<bool> addCategory() async {
     final name = nameController.text.trim();
+    final description = descriptionController.text.trim();
     if (name.isEmpty) {
       Get.snackbar(
         'Validation Error',
@@ -51,7 +54,17 @@ class CategoryController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-      return;
+      return false;
+    }
+
+    if (description.isEmpty) {
+      Get.snackbar(
+        'Validation Error',
+        'Category description cannot be empty.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return false;
     }
 
     // Optional: avoid duplicates by name
@@ -62,7 +75,7 @@ class CategoryController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
-      return;
+      return false;
     }
 
     try {
@@ -76,14 +89,15 @@ class CategoryController extends GetxController {
       final category = CategoryModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: name,
+        description: description,
         imageBase64: imageBase64,
         restaurantCount: 0,
       );
 
       await _categoryCrud.addCategory(category);
-      nameController.clear();
-      selectedImage.value = null;
+      resetForm();
       await loadCategories();
+      return true;
     } catch (e) {
       Get.snackbar(
         'Error',
@@ -91,9 +105,16 @@ class CategoryController extends GetxController {
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+      return false;
     } finally {
       isSaving.value = false;
     }
+  }
+
+  void resetForm() {
+    nameController.clear();
+    descriptionController.clear();
+    selectedImage.value = null;
   }
 
   // Image handling

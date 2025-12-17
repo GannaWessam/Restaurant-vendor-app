@@ -136,33 +136,50 @@ class NotificationService {
     }
   }
 
-  static void showForeground(RemoteMessage message) {
+  static AppNotification? _buildAppNotification(RemoteMessage message) {
     final notification = message.notification;
-    if (notification == null) return;
-
-    // Create AppNotification model
-    final appNotification = AppNotification(
+    if (notification == null) return null;
+    return AppNotification(
       id: message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString(),
       title: notification.title ?? 'Notification',
       body: notification.body ?? '',
       timestamp: message.sentTime ?? DateTime.now(),
       data: message.data,
+      isRead: false,
     );
+  }
 
-    // Add to notifications controller if available
+  static void _addToController(AppNotification appNotification) {
     try {
       if (Get.isRegistered<NotificationsController>()) {
         Get.find<NotificationsController>().addNotification(appNotification);
       }
     } catch (e) {
-      print('NotificationsController not found: $e');
+      print('NotificationsController not available to add notification: $e');
     }
+  }
+
+  /// Allow other flows (e.g., onMessageOpenedApp, getInitialMessage) to push
+  /// messages into the in-app feed.
+  static void addMessageToFeed(RemoteMessage message) {
+    final appNotification = _buildAppNotification(message);
+    if (appNotification != null) {
+      _addToController(appNotification);
+    }
+  }
+
+  static void showForeground(RemoteMessage message) {
+    final appNotification = _buildAppNotification(message);
+    if (appNotification == null) return;
+
+    // Add to notifications controller if available
+    _addToController(appNotification);
 
     // Show local notification with tap handler
     _local.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
+      appNotification.hashCode,
+      appNotification.title,
+      appNotification.body,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           _notificationChannelId,
@@ -184,23 +201,17 @@ class NotificationService {
   /// Show notification when app is in background or terminated
   /// This can be called from the background message handler
   static Future<void> showBackground(RemoteMessage message) async {
-    final notification = message.notification;
-    if (notification == null) return;
+    final appNotification = _buildAppNotification(message);
+    if (appNotification == null) return;
 
-    // Create AppNotification model
-    final appNotification = AppNotification(
-      id: message.messageId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      title: notification.title ?? 'Notification',
-      body: notification.body ?? '',
-      timestamp: message.sentTime ?? DateTime.now(),
-      data: message.data,
-    );
+    // Try to add to in-app feed when the controller is available
+    _addToController(appNotification);
 
     // Show local notification - when tapped, it will navigate via onDidReceiveNotificationResponse
     await _local.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
+      appNotification.hashCode,
+      appNotification.title,
+      appNotification.body,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           _notificationChannelId,

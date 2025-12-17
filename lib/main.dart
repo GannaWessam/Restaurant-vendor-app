@@ -158,6 +158,7 @@ void main() async {
   try {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('App opened from background via notification: ${message.messageId}');
+      NotificationService.addMessageToFeed(message);
       // Navigate to notifications screen
       // Use a small delay to ensure GetX context is ready
       Future.delayed(const Duration(milliseconds: 500), () {
@@ -172,20 +173,12 @@ void main() async {
     print("Error setting up onMessageOpenedApp listener: $e");
   }
 
-  // Handle notification when app is opened from terminated state
+  // Capture initial message (processed later after deps are registered)
+  RemoteMessage? initialMessage;
   try {
-    final RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+    initialMessage = await _fcm.getInitialMessage();
     if (initialMessage != null) {
       print('App opened from terminated state via notification: ${initialMessage.messageId}');
-      // Navigate to notifications screen after app initialization
-      // Use a longer delay to ensure GetX context is fully ready
-      Future.delayed(const Duration(milliseconds: 1000), () {
-        try {
-          Get.toNamed('/notifications');
-        } catch (e) {
-          print('Error navigating to notifications from terminated: $e');
-        }
-      });
     }
   } catch (e) {
     print("Error checking initial message: $e");
@@ -209,6 +202,22 @@ void main() async {
   }
 
   runApp(const MyApp());
+
+  // Now that dependencies are ready, process initial notification
+  if (initialMessage != null) {
+    try {
+      NotificationService.addMessageToFeed(initialMessage);
+    } catch (e) {
+      print('Error adding initial notification to feed: $e');
+    }
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      try {
+        Get.toNamed('/notifications');
+      } catch (e) {
+        print('Error navigating to notifications from terminated: $e');
+      }
+    });
+  }
 }
 
 class MyApp extends StatelessWidget {

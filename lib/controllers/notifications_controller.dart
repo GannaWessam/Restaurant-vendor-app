@@ -7,8 +7,8 @@ class NotificationsController extends GetxController {
 
   // Add a notification
   void addNotification(AppNotification notification) {
-    // Add to the beginning of the list (newest first)
-    notifications.insert(0, notification);
+    // Force unread on arrival
+    notifications.insert(0, notification.copyWith(isRead: false));
   }
 
   // Clear all notifications
@@ -19,5 +19,22 @@ class NotificationsController extends GetxController {
   // Remove a specific notification
   void removeNotification(String id) {
     notifications.removeWhere((n) => n.id == id);
+  }
+
+  // Mark a specific notification as read
+  void markAsRead(String id) {
+    final idx = notifications.indexWhere((n) => n.id == id);
+    if (idx != -1 && notifications[idx].isRead == false) {
+      notifications[idx] = notifications[idx].copyWith(isRead: true);
+    }
+  }
+
+  // Mark all as read (e.g., when opening the notifications screen)
+  void markAllAsRead() {
+    notifications.assignAll(
+      notifications
+          .map((n) => n.isRead ? n : n.copyWith(isRead: true))
+          .toList(),
+    );
   }
 }
